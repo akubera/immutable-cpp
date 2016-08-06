@@ -8,3 +8,7 @@ build
 build.ninja
 .ninja*
 _local
+
+vendor
+*.bak
+
