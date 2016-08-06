@@ -1,10 +1,18 @@
+///
+/// \file base.h
+///
+
 #pragma once
-#include <assert.h>
-#include <stdint.h>
+
+#include <cassert>
+#include <cstdint>
 #include <functional>
 
-namespace immutable {
+#define NAMESPACE_IMMUTABLE_START namespace immutable {
+#define NAMESPACE_IMMUTABLE_END }
 
+
+NAMESPACE_IMMUTABLE_START
 
 #ifndef __has_attribute
   #define __has_attribute(x) 0
@@ -21,7 +29,7 @@ namespace immutable {
 #else
   #define IMMUTABLE_ALWAYS_INLINE inline
 #endif
-  
+
 // target architecture
 #if defined(__i386) || defined(__i386__) || defined(_M_IX86)
   #define IMMUTABLE_TARGET_ARCH_X86 1
@@ -70,7 +78,7 @@ using uint8  = uint8_t;
 
   using atomici32 = _Atomic(int_least32_t);
   using atomicu32 = _Atomic(uint_least32_t);
-  
+
   #define atomic_load_explicit __c11_atomic_load
   #define atomic_fetch_sub_explicit __c11_atomic_fetch_sub
 #else
@@ -226,8 +234,8 @@ struct RefCount {
 
   mutable atomicu32 _refcount;
 };
-  
-  
+
+
 #define IMMUTABLE_REFCOUNTED_IMPL(T)        \
   public:                                   \
     void retain() const override {          \
@@ -252,42 +260,42 @@ template <class T>
 class ref {
 public:
   typedef T element_type;
-  
+
   ref() : _ptr(nullptr) {
   }
-  
+
   ref(T* p) : _ptr(p) {
     if (_ptr) { _ptr->retain(); }
   }
-  
+
   ref(const ref<T>& r) : _ptr(r._ptr) {
     if (_ptr) { _ptr->retain(); }
   }
-  
+
   ref(ref<T>&& r) : _ptr(r._ptr) {
     r._ptr = nullptr;
   }
-  
+
   template <typename U>
   ref(const ref<U>& r) : _ptr(r.ptr()) {
     if (_ptr) { _ptr->retain(); }
   }
-  
+
   ~ref() {
     if (_ptr) { _ptr->release(); }
   }
-  
+
   T* ptr() const { return _ptr; }
-  
+
   // Allow ref<C> to be used in boolean expression
   // and comparison operations.
   operator T*() const { return _ptr; }
-  
+
   T* operator->() const {
     assert(_ptr != nullptr);
     return _ptr;
   }
-  
+
   ref<T>& operator=(T* p) {
     // retain first so that self assignment should work
     if (p) { p->retain(); }
@@ -296,7 +304,7 @@ public:
     if (old_ptr) { old_ptr->release(); }
     return *this;
   }
-  
+
   ref<T>& operator=(const ref<T>& r) {
     return *this = r._ptr;
   }
@@ -310,22 +318,22 @@ public:
     r._ptr = nullptr;
     return *this;
   }
-  
+
   template <typename U>
   ref<T>& operator=(const ref<U>& r) {
     return *this = r.ptr();
   }
-  
+
   void swap(T** pp) {
     T* p = _ptr;
     _ptr = *pp;
     *pp = p;
   }
-  
+
   void swap(ref<T>& r) {
     swap(&r._ptr);
   }
-  
+
 protected:
   T* _ptr;
 };
@@ -378,7 +386,7 @@ struct Value : Object {
   // allow implicit cast to T
   operator T&() { return value; }
   operator const T&() const { return value; }
-  
+
   // comparison
   bool operator<(const Value& rhs) const { return std::less<T>()(value, rhs.value); }
   bool operator>(const Value& rhs) const { return std::greater<T>()(value, rhs.value); }
@@ -399,5 +407,4 @@ struct Value : Object {
 };
 
 
-} // namespace
-
+NAMESPACE_IMMUTABLE_END

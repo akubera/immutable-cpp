@@ -1,12 +1,19 @@
+///
+/// \file array.h
+///
+
 #pragma once
+
 #include "base.h"
 #include <iterator>
 
-namespace immutable {
-  struct ArrayImp;
-  template <typename T> struct TransientArray;
-  static constexpr uint32 END = 0xffffffff;
-  
+NAMESPACE_IMMUTABLE_START
+
+struct ArrayImp;
+
+template <typename T> struct TransientArray;
+static constexpr uint32 END = 0xffffffff;
+
 
   // Persistent array (aka vector aka random-access list)
   template <typename T>
@@ -17,7 +24,7 @@ namespace immutable {
 
     // The empty array
     static ref<Array> empty();
-    
+
     // Create an array with values from initializer list
     template <typename Y> static ref<Array> create(std::initializer_list<Y>&&);
 
@@ -31,11 +38,11 @@ namespace immutable {
 
     // Number of values in this array
     uint32 size() const { return _end - _start; }
-    
+
     // Append value to the end. Form 2 constructs a value T in-place.
     ref<Array> push(ValueT*) const; // 1
     template <typename Arg> ref<Array> push(Arg&&) const; // 2
-    
+
     // Append values from iterator to end.
     // The value type of the iterator must be either Value<T> or some value that T can
     // be constructed from (like T itself or an argument accepted by T's constructor)
@@ -52,7 +59,7 @@ namespace immutable {
     // Returns nullptr if i is out-of bounds. Form 1 constructs a value T in-place.
     template <typename Arg> ref<Array> set(uint32 i, Arg&&) const; // 1
     ref<Array> set(uint32 i, ValueT*) const; // 2
-    
+
     // Access value at index. If i >= size() the behavior is undefined.
     const T& get(uint32 i) const;
 
@@ -61,45 +68,45 @@ namespace immutable {
 
     // Find value at index. Returns nullptr if index is out-of bounds.
     const ref<ValueT> findValue(uint32 i) const;
-    
+
     // Access value at index. If i >= size() the behavior is undefined.
     const ref<ValueT> getValue(uint32 i) const;
-    
+
     // Access first and last value
     const T& first() const;
     const T& last() const;
     const ref<ValueT> firstValue() const;
     const ref<ValueT> lastValue() const;
-    
+
     // Remove the last item
     ref<Array> pop() const;
-    
+
     // Returns an array with all items but the first. Equiv to slice(1)
     // Called "pop_front" or "shift" in some mutative implementation.
     ref<Array> rest() const;
-    
+
     // Returns a version of this array with other array added to the end
     ref<Array> concat(ref<Array>) const;
-    
+
     // Returns a slice of this array, from start up until (but not including) end.
     // Returns null if start and/or end is out-of bounds.
     ref<Array> slice(uint32 start, uint32 end=END) const;
-    
+
     // Replaces values within the range [start, end) with values from iterator it.
     template <typename It>
     ref<Array> splice(uint32 start, uint32 end, It&& it, const It& endit) const;
     ref<Array> splice(uint32 start, uint32 end, Iterator&& it) const;
     ref<Array> splice(uint32 start, uint32 end, Iterator& it) const;
-    
+
     // Replaces values within the range [start, end) with values from another array.
     ref<Array> splice(uint32 start, uint32 end, ref<Array>) const;
-    
+
     // Removes values within the range [start, end). Returns null if i is out-of bounds.
     ref<Array> without(uint32 start, uint32 end=END) const;
-    
+
     // return a new TransientArray contaning the same values as this array
     ref<TransientArrayT> asTransient() const;
-    
+
     // apply modification with a transient.
     // F should return either Array<T> or TransientArray<T>, e.g.
     //   auto a = Array<int>::create({1,2,3});
@@ -109,19 +116,19 @@ namespace immutable {
     //   assert(a->get(1, 20));
     //
     template <typename F> ref<Array> modify(F&& fn) const;
-    
+
     // True if this array has the same values as the other array.
     // Compares values using std::less<T>.
     int compare(const ref<Array>& other) const;
-    
+
     // True if the other array refers to the same underlying data.
     bool operator==(const ref<Array>& rhs) const;
     bool operator!=(const ref<Array>& rhs) const { return !(*this == rhs); }
-    
+
     // Iteration
     Iterator begin(uint32 start=0, uint32 end=END) const;
     const Iterator& end() const;
-    
+
     // forward iterator
     struct Iterator {
       typedef std::forward_iterator_tag iterator_category;
@@ -129,16 +136,16 @@ namespace immutable {
       typedef T      value_type;
       typedef T*     pointer;
       typedef T&     reference;
-      
+
       Iterator() {};
       Iterator(const Iterator&) = default; // copyable
       Iterator(Iterator&&) = default; // movable
-      
+
       Iterator& operator++(); // ++i
       Iterator operator++(int); // i++
       Iterator& operator=(const Iterator& rhs) = default;
       Iterator& operator=(Iterator&& rhs) = default;
-      
+
       // O(1) distance calculation
       difference_type distanceTo(const Iterator& rhs) const;
 
@@ -149,14 +156,14 @@ namespace immutable {
 
       bool operator==(const Iterator& rhs) const;
       bool operator!=(const Iterator& rhs) const { return !(*this == rhs); }
-      
+
     protected:
       friend struct Array;
       friend struct ArrayImp;
 
       Iterator(const Array* a, uint32 absstart, uint32 absend);
       explicit Iterator(const void*) : _a(nullptr) {} // used by ArrayImp::END_ITERATOR
-      
+
       ref<Array>   _a;
       uint32       _i = 0;
       uint32       _end;
@@ -164,10 +171,10 @@ namespace immutable {
       ref<Object>* _slots = nullptr;
       uint32       _slotlen;
     };
-    
+
     // lower-case name for STL compatibility
     typedef Iterator iterator;
-    
+
     // copyable and movable
     Array(const Array&) = default;
     Array(Array&&) = default;
@@ -176,7 +183,7 @@ namespace immutable {
 
   protected:
     friend struct ArrayImp;
-    
+
     uint32      _start; // index offset used when this array is a slice of another array
     uint32      _end;   // _end - _offs = number of values in the list
     uint32      _shift; // BITS times (the depth of this trie minus one)
@@ -191,7 +198,7 @@ namespace immutable {
 
     IMMUTABLE_REFCOUNTED_IMPL(Array)
   };
-  
+
 
   // Transient version of Array to be used for efficient batch modifications.
   // Supports only a subset of the operations provided by Array.
@@ -200,7 +207,7 @@ namespace immutable {
   // for a transient.
   template <typename T> struct TransientArray : RefCounted {
     using ValueT = Value<T>;
-    
+
     // Number of items in this array
     uint32 size() const { return _end - _start; }
 
@@ -208,11 +215,11 @@ namespace immutable {
     // the same root. Returns null if this transient array is not editable
     // (e.g. makePersistent() has already been called.)
     ref<Array<T>> makePersistent();
-    
+
     // Append value to the end. Form 2 constructs a value T in-place.
     ref<TransientArray> push(ValueT*); // 1
     template <typename Arg> ref<TransientArray> push(Arg&&); // 2
-    
+
     // Set value at index i, where i must be less than size().
     // Returns nullptr if i is out-of bounds. Form 1 constructs a value T in-place.
     template <typename Arg> ref<TransientArray> set(uint32 i, Arg&&); // 1
@@ -220,16 +227,16 @@ namespace immutable {
 
     // Find value at index. Returns nullptr if index is out-of bounds.
     const ref<ValueT> findValue(uint32 i) const;
-    
+
     // Find value at index. If i >= size() the behavior is undefined.
     const ref<ValueT> getValue(uint32 i) const;
-    
+
     // Find value at index. If i >= size() the behavior is undefined.
     const T& get(uint32 i) const;
 
     // Remove the last item
     ref<TransientArray> pop();
-    
+
     // Access first and last value
     const T& first() const;
     const T& last() const;
@@ -239,23 +246,23 @@ namespace immutable {
   private:
     friend struct ArrayImp;
     friend struct Array<T>;
-    
+
     uint32      _start;
     uint32      _end;
     uint32      _shift;
     ref<Object> _root;
     ref<Object> _tail;
-    
+
     TransientArray(uint32 start, uint32 end, uint32 shift, Object* root, Object* tail)
       : _start(start), _end(end), _shift(shift), _root(root), _tail(tail)
     {}
-    
+
     void dealloc() { delete this; }
-    
+
     IMMUTABLE_REFCOUNTED_IMPL(TransientArray)
   };
-  
-  
+
+
   struct ArrayImp {
     static constexpr uint32  BITS     = 5;            // 5, 4, 3, 2 ...
     static constexpr uint32  BRANCHES = 1 << BITS;    // 2^5=32, 2^4=16, 2^3=8, 2^2=4 ...
@@ -269,7 +276,7 @@ namespace immutable {
     static A EMPTY;
     static N EMPTY_NODE;
     static A::Iterator END_ITERATOR;
-    
+
     // Note: The below functions all expect normalized, absolute indexes.
 
     // Array
@@ -285,7 +292,7 @@ namespace immutable {
     static A*      without(A*, uint32 start, uint32 end);
     static A*      splice(A*, uint32 start, uint32 end, A::Iterator& it);
     static A*      splicefn(A*, uint32 start, uint32 end, const ItFunc& next);
-    
+
     // Array -> TransientArray
     static TA*     createTransient(A*);
 
@@ -297,7 +304,7 @@ namespace immutable {
     static TA*     set(TA*, uint32 i, Object*);
     static TA*     push(TA*, Object*);
     static TA*     pop(TA*);
-    
+
     // TransientArray -> Array
     static A*      createPersistent(TA*);
 
@@ -307,27 +314,27 @@ namespace immutable {
 
   // —————————————————————————————————————————————————————————————————————
   // TransientArray
-  
+
   template <typename T>
   inline ref<Array<T>> TransientArray<T>::makePersistent() {
     return (Array<T>*)ArrayImp::createPersistent((ArrayImp::TA*)this);
   }
-  
-  
+
+
   template <typename T>
   inline ref<TransientArray<T>>
   TransientArray<T>::push(typename TransientArray<T>::ValueT* v) {
     assert(v != nullptr);
     return (TransientArray<T>*)ArrayImp::push((ArrayImp::TA*)this, v);
   }
-  
+
   template <typename T>
   template <typename Arg>
   inline ref<TransientArray<T>> TransientArray<T>::push(Arg&& arg) {
     return push(new ValueT(fwd<Arg>(arg)));
   }
-  
-  
+
+
   template <typename T>
   inline ref<TransientArray<T>> TransientArray<T>::set(uint32 i, ValueT* v) {
     assert(v != nullptr);
@@ -337,14 +344,14 @@ namespace immutable {
     }
     return (TransientArray<T>*)ArrayImp::set((ArrayImp::TA*)this, i, v);
   }
-  
+
   template <typename T>
   template <typename Arg>
   inline ref<TransientArray<T>> TransientArray<T>::set(uint32 i, Arg&& arg) {
     return set(i, new ValueT(fwd<Arg>(arg)));
   }
-  
-  
+
+
   template <typename T>
   inline const ref<Value<T>> TransientArray<T>::findValue(uint32 i) const {
     i += _start;
@@ -357,19 +364,19 @@ namespace immutable {
     }
     return static_cast<ValueT*>(obj);
   }
-  
-  
+
+
   template <typename T>
   inline const ref<Value<T>> TransientArray<T>::getValue(uint32 i) const {
     return static_cast<ValueT*>(ArrayImp::getValue((ArrayImp::TA*)this, i + _start));
   }
-  
+
   template <typename T>
   inline const T& TransientArray<T>::get(uint32 i) const {
     return getValue(i)->value;
   }
-  
-  
+
+
   template <typename T>
   inline const ref<typename TransientArray<T>::ValueT> TransientArray<T>::firstValue() const {
     if (!size()) {
@@ -380,7 +387,7 @@ namespace immutable {
     }
     return static_cast<ValueT*>(ArrayImp::getValue((ArrayImp::TA*)this, _start));
   }
-  
+
   template <typename T>
   inline const ref<typename TransientArray<T>::ValueT> TransientArray<T>::lastValue() const {
     if (size()) {
@@ -388,31 +395,31 @@ namespace immutable {
     }
     return nullptr;
   }
-  
+
   template <typename T>
   inline const T& TransientArray<T>::first() const {
     return firstValue()->value;
   }
-  
+
   template <typename T>
   inline const T& TransientArray<T>::last() const {
     return lastValue()->value;
   }
-  
+
   template <typename T>
   inline ref<TransientArray<T>> TransientArray<T>::pop() {
     return size() ? (TransientArray<T>*)ArrayImp::pop((ArrayImp::TA*)this) : this;
   }
-  
-  
+
+
   // —————————————————————————————————————————————————————————————————————
   // Array
-  
+
   template <typename T>
   inline ref<Array<T>> Array<T>::empty() {
     return (Array<T>*)&ArrayImp::EMPTY;
   }
-  
+
   //template <typename T>
   //inline Array<T>::Array(ref<TransientArrayT> t)
   //  : _root(ArrayImp::consPersistent(t, this))
@@ -430,7 +437,7 @@ namespace immutable {
     }
     return t->makePersistent();
   }
-  
+
   template <typename T>
   template <typename It>
   inline ref<Array<T>> Array<T>::create(It&& I, const It& E) {
@@ -440,7 +447,7 @@ namespace immutable {
     }
     return t->makePersistent();
   }
-  
+
   // specialization for Array<T>::Iterator
   template <typename T>
   inline ref<Array<T>> Array<T>::create(Iterator&& I, const Iterator& E) {
@@ -459,7 +466,7 @@ namespace immutable {
     }
     return t->makePersistent();
   }
-  
+
   template <typename T>
   template <typename Iterable>
   inline ref<Array<T>> Array<T>::create(Iterable&& vals) {
@@ -471,7 +478,7 @@ namespace immutable {
     }
     return t->makePersistent();
   }
-  
+
   template <typename T>
   template <typename Iterable>
   inline ref<Array<T>> Array<T>::create(const Iterable& vals) {
@@ -481,7 +488,7 @@ namespace immutable {
     }
     return t->makePersistent();
   }
-  
+
   template <typename T>
   template <typename Y>
   inline ref<Array<T>> Array<T>::create(std::initializer_list<Y>&& vals) {
@@ -493,7 +500,7 @@ namespace immutable {
     }
     return t->makePersistent();
   }
-  
+
   // Constructor only used for initialization of ArrayImp::EMPTY
   template <typename T>
   inline Array<T>::Array(ref<Object> root, ref<Object> tail)
@@ -507,18 +514,18 @@ namespace immutable {
     uint32 start, uint32 end, uint32 shift, ref<Object> root, ref<Object> tail)
     : _start(start), _end(end), _shift(shift), _root(root), _tail(tail)
   {}
-  
-  
+
+
   template <typename T>
   inline ref<Array<T>> Array<T>::push(ValueT* v) const {
     return (Array<T>*)ArrayImp::push((ArrayImp::A*)this, v);
   }
-  
+
   template <typename T>
   template <typename Arg> ref<Array<T>> Array<T>::push(Arg&& arg) const {
     return push(new ValueT(fwd<Arg>(arg)));
   }
-  
+
   template <typename T>
   template <typename It>
   inline ref<Array<T>> Array<T>::push(It&& I, const It& E) const {
@@ -528,7 +535,7 @@ namespace immutable {
       }
     });
   }
-  
+
   template <typename T>
   template <typename It>
   inline ref<Array<T>> Array<T>::push(It& I, const It& E) const {
@@ -538,7 +545,7 @@ namespace immutable {
       }
     });
   }
-  
+
   template <typename T>
   inline ref<Array<T>> Array<T>::push(Iterator&& I, const Iterator& E) const {
     return modify([&](ref<TransientArray<T>> t) {
@@ -547,7 +554,7 @@ namespace immutable {
       }
     });
   }
-  
+
   template <typename T>
   inline ref<Array<T>> Array<T>::push(Iterator& I, const Iterator& E) const {
     return modify([&](ref<TransientArray<T>> t) {
@@ -556,19 +563,19 @@ namespace immutable {
       }
     });
   }
-  
-  
+
+
   template <typename T>
   inline ref<Array<T>> Array<T>::cons(ValueT* v) const {
     return (Array<T>*)ArrayImp::cons((ArrayImp::A*)this, v);
   }
-  
+
   template <typename T>
   template <typename Arg> ref<Array<T>> Array<T>::cons(Arg&& arg) const {
     return cons(new ValueT(fwd<Arg>(arg)));
   }
-  
-  
+
+
   template <typename T>
   inline ref<Array<T>> Array<T>::set(uint32 i, ValueT* v) const {
     assert(v != nullptr);
@@ -578,7 +585,7 @@ namespace immutable {
     }
     return (Array<T>*)ArrayImp::set((ArrayImp::A*)this, i, v);
   }
-  
+
   template <typename T>
   template <typename Arg>
   inline ref<Array<T>> Array<T>::set(uint32 i, Arg&& arg) const {
@@ -590,7 +597,7 @@ namespace immutable {
   inline typename Array<T>::Iterator Array<T>::find(uint32 i) const {
     return Iterator(this, _start + i, _end);
   }
-  
+
 
   template <typename T>
   inline const ref<Value<T>> Array<T>::findValue(uint32 i) const {
@@ -604,18 +611,18 @@ namespace immutable {
     }
     return static_cast<ValueT*>(obj);
   }
-  
+
 
   template <typename T>
   inline const ref<Value<T>> Array<T>::getValue(uint32 i) const {
     return static_cast<ValueT*>(ArrayImp::getValue((ArrayImp::A*)this, i + _start));
   }
-  
+
   template <typename T>
   inline const T& Array<T>::get(uint32 i) const {
     return getValue(i)->value;
   }
-  
+
   template <typename T>
   inline const ref<typename Array<T>::ValueT> Array<T>::firstValue() const {
     if (!size()) {
@@ -626,7 +633,7 @@ namespace immutable {
     }
     return static_cast<ValueT*>(ArrayImp::getValue((ArrayImp::A*)this, _start));
   }
-  
+
   template <typename T>
   inline const ref<typename Array<T>::ValueT> Array<T>::lastValue() const {
     if (size()) {
@@ -634,33 +641,33 @@ namespace immutable {
     }
     return nullptr;
   }
-  
+
   template <typename T>
   inline const T& Array<T>::first() const {
     return firstValue()->value;
   }
-  
+
   template <typename T>
   inline const T& Array<T>::last() const {
     return lastValue()->value;
   }
-  
+
   template <typename T>
   inline ref<Array<T>> Array<T>::pop() const {
     return size() ? (Array<T>*)ArrayImp::pop((ArrayImp::A*)this)
                   : const_cast<Array<T>*>(this);
   }
-  
+
   template <typename T>
   inline ref<Array<T>> Array<T>::rest() const {
     return slice(1);
   }
-  
+
   template <typename T>
   inline ref<Array<T>> Array<T>::concat(ref<Array> other) const {
     return push(other->begin(), other->end());
   }
-  
+
   template <typename T>
   inline ref<Array<T>> Array<T>::slice(uint32 start, uint32 end) const {
     return (Array<T>*)ArrayImp::slice(
@@ -669,7 +676,7 @@ namespace immutable {
       end == END ? _end : end + _start
     );
   }
-  
+
   template <typename T>
   inline ref<Array<T>> Array<T>::without(uint32 start, uint32 end) const {
     return (Array<T>*)ArrayImp::without(
@@ -678,12 +685,12 @@ namespace immutable {
       end == END ? _end : end + _start
     );
   }
-  
+
   template <typename T>
   inline ref<Array<T>> Array<T>::splice(uint32 start, uint32 end, ref<Array> a) const {
     return splice(start, end, a->begin());
   }
-  
+
   template <typename T>
   inline ref<Array<T>>
   Array<T>::splice(uint32 start, uint32 end, Iterator& it) const {
@@ -724,13 +731,13 @@ namespace immutable {
       }
     );
   }
-  
+
   template <typename T>
   inline ref<TransientArray<T>> Array<T>::asTransient() const {
     return (TransientArrayT*)ArrayImp::createTransient((ArrayImp::A*)this);
   }
-  
-  
+
+
   template <typename T>
   template <typename F>
   inline ref<Array<T>> Array<T>::modify(F&& fn) const {
@@ -738,7 +745,7 @@ namespace immutable {
     fn(t);
     return t->makePersistent();
   }
-  
+
   template <typename T>
   inline bool Array<T>::operator==(const ref<Array>& rhs) const {
     return this == rhs.ptr();
@@ -746,7 +753,7 @@ namespace immutable {
     // create copies of an array unless the size changes, in which case the arrays
     // are different.
   }
-  
+
   template <typename T>
   inline int Array<T>::compare(const ref<Array>& other) const {
     if (operator==(other)) {
@@ -779,10 +786,10 @@ namespace immutable {
     }
     return 0;
   }
-  
+
   // —————————————————————————————————————————————————————————————————————
   // Array::Iterator
-  
+
   template <typename T>
   inline typename Array<T>::Iterator Array<T>::begin(uint32 start, uint32 end) const {
     // Note: Iterator constructor handles the case when end==END
@@ -792,12 +799,12 @@ namespace immutable {
       end == END ? _end : min(_start + end, _end)
     );
   }
-  
+
   template <typename T>
   inline const typename Array<T>::Iterator& Array<T>::end() const {
     return (Array<T>::Iterator&)ArrayImp::END_ITERATOR;
   }
-  
+
   template <typename T>
   inline Array<T>::Iterator::Iterator(const Array* a, uint32 start, uint32 end)
     // Note: start and end are absolute
@@ -812,7 +819,7 @@ namespace immutable {
       _slots = nullptr;
     }
   }
-  
+
   template <typename T>
   inline Value<T>* Array<T>::Iterator::value() {
     Object* obj = _slots[_i & ArrayImp::MASK];
@@ -831,12 +838,12 @@ namespace immutable {
   inline bool Array<T>::Iterator::valid() const {
     return _slots && _i < _end;
   }
-  
+
   template <typename T>
   inline T& Array<T>::Iterator::operator*() {
     return value()->value;
   }
-  
+
   template <typename T>
   inline typename Array<T>::Iterator& Array<T>::Iterator::operator++() { // ++i
     ++_i;
@@ -851,14 +858,14 @@ namespace immutable {
     }
     return *this;
   }
-  
+
   template <typename T>
   inline typename Array<T>::Iterator Array<T>::Iterator::operator++(int) { // i++
     Iterator copy(*this);
     operator++();
     return copy;
   }
-  
+
   template <typename T>
   inline bool Array<T>::Iterator::operator==(const Array<T>::Iterator& rhs) const {
     if (_slots != rhs._slots) { return false; }
@@ -868,8 +875,8 @@ namespace immutable {
     }
     return _i == rhs._i;
   }
-  
-  
+
+
   template <typename T>
   inline typename Array<T>::Iterator::difference_type
   Array<T>::Iterator::distanceTo(const Array<T>::Iterator& other) const {
@@ -882,5 +889,4 @@ namespace immutable {
     return (_i > other._i) ? _i - other._i : other._i - _i;
   }
 
-
-} // namespace
+NAMESPACE_IMMUTABLE_END
