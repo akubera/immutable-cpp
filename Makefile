@@ -53,7 +53,7 @@ BANDIT_TGZ_URL = https://github.com/joakimkarlsson/bandit/archive/v${BANDIT_VERS
 
 .PHONY: help all build build_debug build_release get-deps test clean
 
-HEADER_BASENAMES = array.h base.h
+HEADER_BASENAMES = array.h base.h tree.h
 HEADERS = $(addprefix immutable/, ${HEADER_BASENAMES})
 
 SOURCE_BASENAMES = array.cc
